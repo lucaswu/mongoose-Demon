@@ -2,8 +2,40 @@
 #include <string>
 #include "mongoose.h"
 #include "cJSON.h"
+#include "../mysql/dBConnection_mysql.h"
+
 
 using namespace std;
+
+std::string GetMySQLData()
+{
+    DBConnectionMySQL mysql = DBConnectionMySQL::Instance();
+    std::string sql = "select * from tb_futures";
+    auto data = mysql.getDbData(sql);
+
+    cJSON* root = NULL;
+    root = cJSON_CreateObject();
+    cJSON* data_sql = cJSON_CreateArray();
+
+    string name[9] = {"id","合同号","合约","开仓平","多空","数量","价格","日期","注释"};
+    for (int i = 0; i < data.size(); i++) {
+        cJSON* value = cJSON_CreateObject();
+        auto itemData = data.at(i);
+        for (int j = 0; j < itemData.size(); j++) {
+            cJSON_AddStringToObject(value, name[j].c_str(), itemData.at(j).c_str());
+        }
+        cJSON_AddItemToArray(data_sql,value);
+    }
+
+    cJSON_AddItemToObject(root, "data", data_sql);
+    char outputBuffer[1024];
+
+    cJSON_PrintPreallocated(root, outputBuffer, 1000, 1);
+
+    cJSON_Delete(root);
+
+    return std::string(outputBuffer);
+}
 
 std::string GetjsonData()
 {
@@ -74,7 +106,7 @@ void callback(struct mg_connection* c, int ev, void* ev_data, void* fn_data) {
 
             if (method == "GET") {
                 string header = "Content-Type: application/json;charset:utf-8\r\n";
-                string body = GetjsonData();
+                string body = GetMySQLData();
                 mg_http_reply(c, 200, header.c_str(), "%s", body.c_str()); 
             }
         }
